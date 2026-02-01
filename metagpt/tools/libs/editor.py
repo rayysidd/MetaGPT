@@ -354,23 +354,29 @@ class Editor(BaseModel):
         output += self._print_window(self.current_file, self.current_line, self.window)
         return output
 
-    async def create_file(self, filename: str, content: str = "") -> str:
-        """Creates and opens a new file with the given name and optional content.
+    async def create_file(self, filename: str = "", content: str = "", **kwargs) -> str:
+        """Creates and opens a new file. Robustly handles aliases like 'file_path'."""
+        
+        # 1. Handle AI hallucinations (aliases)
+        if not filename:
+            # If AI sent 'file_path' or 'path' instead of 'filename', catch it here
+            filename = kwargs.get('file_path') or kwargs.get('path')
+            
+        if not filename:
+            return "Error: You must provide a 'filename' argument."
 
-        Args:
-            filename: str: The name of the file to create.
-            content: str: (Optional) The initial content to write to the file.
-        """
+        # 2. Standard Logic
         filename = self._try_fix_path(filename)
 
         if filename.exists():
             raise FileExistsError(f"File '{filename}' already exists.")
         
-        # MODIFIED LINE: Write the actual content if provided, otherwise use the default newline
+        # 3. Write content (The fix we made earlier)
         await awrite(filename, content if content else "\n")
 
         self.open_file(filename)
         return f"[File {filename} created with {len(content)} characters.]"
+
     @staticmethod
     def _append_impl(lines, content):
         """Internal method to handle appending to a file.
